@@ -9,7 +9,6 @@ def asset_map() -> dict[str, WatermarkAsset]:
         "logo_01": WatermarkAsset(
             asset_id="logo_01",
             filename="watermark.png",
-            sha256="hash",
             type="image/png",
             width=500,
             height=200,
@@ -62,7 +61,6 @@ def test_generate_events_uses_asset_specific_opacity_and_weight():
     assets["logo_02"] = WatermarkAsset(
         asset_id="logo_02",
         filename="second.png",
-        sha256="hash2",
         type="image/png",
         width=300,
         height=100,

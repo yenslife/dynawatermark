@@ -6,13 +6,10 @@ from pathlib import Path
 from PIL import Image
 from pydantic import BaseModel, Field
 
-from dynawatermark.hashing import file_sha256
-
 
 class WatermarkAsset(BaseModel):
     asset_id: str
     filename: str
-    sha256: str
     type: str
     width: int = Field(gt=0)
     height: int = Field(gt=0)
@@ -24,7 +21,6 @@ def inspect_watermark_asset(path: Path, *, asset_id: str = "logo_01") -> Waterma
     return WatermarkAsset(
         asset_id=asset_id,
         filename=path.name,
-        sha256=file_sha256(path),
         type=mimetypes.guess_type(path.name)[0] or "application/octet-stream",
         width=width,
         height=height,

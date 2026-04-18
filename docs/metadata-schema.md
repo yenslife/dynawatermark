@@ -2,7 +2,7 @@
 
 ## 設計原則
 
-metadata JSON 用來記錄一次浮水印處理作業的輸入、輸出、設定、事件與完整性資訊。格式需穩定、可驗證、可重現。
+metadata JSON 用來記錄一次浮水印處理作業的輸入、輸出、設定與事件資訊。格式需穩定、清楚、可重現。
 
 ## 頂層欄位
 
@@ -15,14 +15,12 @@ metadata JSON 用來記錄一次浮水印處理作業的輸入、輸出、設定
 - `watermark_assets`：浮水印素材資訊列表。
 - `config`：實際使用的設定。
 - `events`：浮水印事件列表。
-- `integrity`：hash 與完整性資訊。
 
 ## 影片資訊
 
 `input_video`：
 
 - `filename`
-- `sha256`
 - `duration_sec`
 - `width`
 - `height`
@@ -31,12 +29,10 @@ metadata JSON 用來記錄一次浮水印處理作業的輸入、輸出、設定
 `output_video`：
 
 - `filename`
-- `sha256`
 
 `inspection_video`：
 
 - `filename`
-- `sha256`
 
 `inspection_video` 是依同一批 `events` 產生的人工核對版影片。每個事件會以紅色實心區塊填滿原本浮水印的座標與尺寸，方便直接觀看影片確認浮水印出現的位置與時間。
 
@@ -46,10 +42,11 @@ metadata JSON 用來記錄一次浮水印處理作業的輸入、輸出、設定
 
 - `asset_id`
 - `filename`
-- `sha256`
 - `type`
+- `width`
+- `height`
 
-MVP 的 `type` 固定為 `image/png`。
+`type` 會依副檔名推測，例如 `image/png` 或 `image/jpeg`。
 
 ## 設定資訊
 
@@ -82,26 +79,6 @@ MVP 的 `type` 固定為 `image/png`。
 - `y + height <= input_video.height`
 - `0 <= opacity <= 1`
 
-## Integrity
-
-`integrity` 包含：
-
-- `metadata_sha256`
-- `config_sha256`
-
-`config_sha256` 針對 canonical config JSON 計算。
-
-`metadata_sha256` 針對 canonical metadata JSON 計算，但計算時 `integrity.metadata_sha256` 必須設為 `null`，避免 hash 自我遞迴。
-
-## Canonical JSON
-
-計算 SHA-256 時使用以下規則：
-
-- UTF-8 編碼。
-- object key 依字母排序。
-- 不輸出多餘空白。
-- 浮點數由資料模型先統一四捨五入到固定精度。
-
 ## 範例
 
 ```json
@@ -111,25 +88,21 @@ MVP 的 `type` 固定為 `image/png`。
   "created_at": "2026-04-19T15:30:00+08:00",
   "input_video": {
     "filename": "input.mp4",
-    "sha256": "INPUT_VIDEO_HASH",
     "duration_sec": 120.53,
     "width": 1920,
     "height": 1080,
     "fps": 30.0
   },
   "output_video": {
-    "filename": "output_watermarked.mp4",
-    "sha256": "OUTPUT_VIDEO_HASH"
+    "filename": "output_watermarked.mp4"
   },
   "inspection_video": {
-    "filename": "inspection_red_boxes.mp4",
-    "sha256": "INSPECTION_VIDEO_HASH"
+    "filename": "inspection_red_boxes.mp4"
   },
   "watermark_assets": [
     {
       "asset_id": "logo_01",
       "filename": "watermark.png",
-      "sha256": "WATERMARK_ASSET_HASH",
       "type": "image/png",
       "width": 500,
       "height": 200
@@ -170,11 +143,7 @@ MVP 的 `type` 固定為 `image/png`。
       "rotation_deg": 0.0,
       "asset_id": "logo_01"
     }
-  ],
-  "integrity": {
-    "config_sha256": "CONFIG_HASH",
-    "metadata_sha256": "METADATA_HASH"
-  }
+  ]
 }
 ```
 

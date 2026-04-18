@@ -53,7 +53,7 @@ uv run dynawatermark render \
 |---|---|
 | `output_watermarked.mp4` | 實際使用的透明浮水印影片。 |
 | `inspection_red_boxes.mp4` | 人工核對版。每個浮水印事件以紅色實心區塊填滿原座標與尺寸。 |
-| `metadata.json` | 記錄輸入、輸出、素材、設定、events 與 hash。 |
+| `metadata.json` | 記錄輸入、輸出、素材、設定與 events。 |
 | `temp/*.png` | 每個事件實際套用到影片的暫存浮水印圖。 |
 
 若使用 `--no-inspection`，不會輸出 `inspection_red_boxes.mp4`，metadata 的 `inspection_video` 會是 `null`。

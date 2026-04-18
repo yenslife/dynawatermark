@@ -2,12 +2,12 @@ from datetime import datetime, timezone
 
 from dynawatermark.config import WatermarkConfig
 from dynawatermark.event_generator import WatermarkEvent
-from dynawatermark.metadata import build_metadata, metadata_sha256, read_metadata, write_metadata
+from dynawatermark.metadata import build_metadata, read_metadata, write_metadata
 from dynawatermark.video_probe import VideoInfo
 from dynawatermark.watermark_asset import WatermarkAsset
 
 
-def test_metadata_hash_roundtrip(tmp_path):
+def test_metadata_roundtrip(tmp_path):
     input_path = tmp_path / "input.mp4"
     output_path = tmp_path / "output.mp4"
     input_path.write_bytes(b"input")
@@ -17,7 +17,6 @@ def test_metadata_hash_roundtrip(tmp_path):
     asset = WatermarkAsset(
         asset_id="logo_01",
         filename="watermark.png",
-        sha256="asset-hash",
         type="image/png",
         width=100,
         height=50,
@@ -50,5 +49,5 @@ def test_metadata_hash_roundtrip(tmp_path):
     write_metadata(metadata, metadata_path)
     loaded = read_metadata(metadata_path)
 
-    assert loaded.integrity.metadata_sha256 == metadata_sha256(loaded)
-    assert loaded.integrity.metadata_sha256 == metadata.integrity.metadata_sha256
+    assert loaded == metadata
+    assert loaded.output_video.filename == "output.mp4"
