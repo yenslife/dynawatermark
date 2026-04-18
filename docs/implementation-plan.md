@@ -13,6 +13,7 @@
 - `event_generator.py`：依影片資訊與設定產生 watermark events。
 - `watermark_asset.py`：建立每個事件使用的暫存 PNG。
 - `ffmpeg_renderer.py`：建立 FFmpeg filter graph 並輸出影片。
+- `ffmpeg_renderer.py` 也負責依 events 產生紅色區塊人工核對版影片。
 - `metadata.py`：建立 metadata JSON，計算完整性資訊。
 
 ## CLI
@@ -36,6 +37,8 @@ MVP 採用暫存 PNG 策略：
 1. 用 Pillow 依每個事件產生已縮放、已套用透明度的 PNG。
 2. 將每張 PNG 作為 FFmpeg input。
 3. 對每個事件建立 `overlay` filter，使用 `enable='between(t,start,end)'` 控制顯示時間。
+4. 另外用同一批 events 建立 `drawbox` filter，輸出紅色實心區塊人工核對版影片。
+5. 預設以兩個 FFmpeg process 平行輸出透明浮水印版與紅色區塊人工核對版。
 
 這個策略比把所有縮放與 alpha 都塞入 filter graph 更容易 debug，也方便未來加入旋轉。
 

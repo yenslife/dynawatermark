@@ -12,6 +12,7 @@
 - 輸入一張透明 PNG 浮水印素材。
 - 依 JSON 設定產生隨機或指定時間的浮水印事件。
 - 使用 FFmpeg 輸出加上浮水印的新影片。
+- 依同一批浮水印事件輸出紅色區塊人工核對版影片。
 - 輸出 metadata JSON。
 - 計算輸入影片、輸出影片、浮水印素材、設定與 metadata 的 SHA-256，寫入 metadata。
 
@@ -109,9 +110,10 @@ MVP 支援一張或多張 PNG，建議使用透明背景。
 4. 根據影片資訊與設定產生 watermark events；random 模式自動產生，scheduled 模式使用指定事件。
 5. 為每個 event 產生暫存 PNG，套用尺寸與透明度。
 6. 使用 FFmpeg filter graph 將暫存 PNG 疊加到影片。
-7. 輸出影片。
-8. 計算輸出影片 SHA-256。
-9. 產生 metadata JSON 與 metadata SHA-256。
+7. 輸出透明浮水印影片。
+8. 使用同一批 events 產生紅色區塊人工核對版影片。
+9. 計算輸出影片與人工核對版影片 SHA-256。
+10. 產生 metadata JSON 與 metadata SHA-256。
 
 ## 證明力限制
 

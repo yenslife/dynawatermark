@@ -39,6 +39,7 @@ def test_metadata_hash_roundtrip(tmp_path):
         job_id="wm_test",
         input_path=input_path,
         output_path=output_path,
+        inspection_path=None,
         video=video,
         assets=[asset],
         config=config,

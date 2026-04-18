@@ -8,17 +8,21 @@
 
 ```bash
 uv run dynawatermark render \
-  --input input.mp4 \
+  --input demo1.mov \
   --config examples/config.random.json \
   --output-dir outputs/demo \
-  --watermark watermark.png
+  --watermark watermark.jpeg
 ```
+
+預設會同時輸出透明浮水印影片與紅色區塊人工核對版影片。若不需要人工核對版，可加上 `--no-inspection`。
+
+啟用 inspection 時，兩支影片會平行產生，終端機會顯示 `Watermark` 與 `Inspection` 兩條進度。若機器資源有限或只需要正式輸出，可使用 `--no-inspection` 只產生透明浮水印版本。
 
 進階模式請在 config 的 `assets[].path` 設定圖片路徑，並省略 `--watermark`：
 
 ```bash
 uv run dynawatermark render \
-  --input input.mp4 \
+  --input demo1.mov \
   --config examples/config.subtle-random.json \
   --output-dir outputs/demo
 ```
@@ -40,6 +44,68 @@ uv run dynawatermark render \
 | `allow_rotation` | boolean | `false` | 全部 | 保留欄位。MVP 尚未支援旋轉，必須為 `false`。 |
 | `assets` | array | `[]` | 全部 | 進階圖片設定。空陣列時需用 CLI `--watermark` 指定單張圖片。 |
 | `scheduled_events` | array | `[]` | scheduled | 指定時間事件。`mode` 為 `"scheduled"` 時必填且不可為空。 |
+
+## 輸出檔案
+
+每次 render 會建立一個 job 資料夾，預設包含：
+
+| 檔案 | 說明 |
+|---|---|
+| `output_watermarked.mp4` | 實際使用的透明浮水印影片。 |
+| `inspection_red_boxes.mp4` | 人工核對版。每個浮水印事件以紅色實心區塊填滿原座標與尺寸。 |
+| `metadata.json` | 記錄輸入、輸出、素材、設定、events 與 hash。 |
+| `temp/*.png` | 每個事件實際套用到影片的暫存浮水印圖。 |
+
+若使用 `--no-inspection`，不會輸出 `inspection_red_boxes.mp4`，metadata 的 `inspection_video` 會是 `null`。
+
+## Command Examples
+
+### 簡易模式
+
+```bash
+uv run dynawatermark render \
+  --input demo1.mov \
+  --config examples/config.random.json \
+  --output-dir outputs/demo \
+  --watermark watermark.jpeg
+```
+
+### 進階多圖片
+
+```bash
+uv run dynawatermark render \
+  --input demo1.mov \
+  --config examples/config.advanced-random.json \
+  --output-dir outputs/demo
+```
+
+### 低調浮水印
+
+```bash
+uv run dynawatermark render \
+  --input demo1.mov \
+  --config examples/config.subtle-random.json \
+  --output-dir outputs/demo
+```
+
+### 指定時間
+
+```bash
+uv run dynawatermark render \
+  --input demo1.mov \
+  --config examples/config.scheduled.json \
+  --output-dir outputs/demo
+```
+
+### 只輸出透明浮水印版
+
+```bash
+uv run dynawatermark render \
+  --input demo1.mov \
+  --config examples/config.subtle-random.json \
+  --output-dir outputs/demo \
+  --no-inspection
+```
 
 ## `assets[]` 欄位
 

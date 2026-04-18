@@ -11,6 +11,7 @@ metadata JSON 用來記錄一次浮水印處理作業的輸入、輸出、設定
 - `created_at`：ISO 8601 時間字串。
 - `input_video`：輸入影片資訊。
 - `output_video`：輸出影片資訊。
+- `inspection_video`：紅色區塊人工核對版影片資訊，若未輸出則為 `null`。
 - `watermark_assets`：浮水印素材資訊列表。
 - `config`：實際使用的設定。
 - `events`：浮水印事件列表。
@@ -31,6 +32,13 @@ metadata JSON 用來記錄一次浮水印處理作業的輸入、輸出、設定
 
 - `filename`
 - `sha256`
+
+`inspection_video`：
+
+- `filename`
+- `sha256`
+
+`inspection_video` 是依同一批 `events` 產生的人工核對版影片。每個事件會以紅色實心區塊填滿原本浮水印的座標與尺寸，方便直接觀看影片確認浮水印出現的位置與時間。
 
 ## 浮水印素材資訊
 
@@ -112,6 +120,10 @@ MVP 的 `type` 固定為 `image/png`。
   "output_video": {
     "filename": "output_watermarked.mp4",
     "sha256": "OUTPUT_VIDEO_HASH"
+  },
+  "inspection_video": {
+    "filename": "inspection_red_boxes.mp4",
+    "sha256": "INSPECTION_VIDEO_HASH"
   },
   "watermark_assets": [
     {

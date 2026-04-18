@@ -36,6 +36,7 @@ class RenderJobMetadata(BaseModel):
     created_at: str
     input_video: InputVideoMetadata
     output_video: VideoHashInfo
+    inspection_video: VideoHashInfo | None = None
     watermark_assets: list[WatermarkAsset]
     config: WatermarkConfig
     events: list[WatermarkEvent]
@@ -52,6 +53,7 @@ def build_metadata(
     job_id: str,
     input_path: Path,
     output_path: Path,
+    inspection_path: Path | None,
     video: VideoInfo,
     assets: list[WatermarkAsset],
     config: WatermarkConfig,
@@ -71,6 +73,11 @@ def build_metadata(
             fps=video.fps,
         ),
         output_video=VideoHashInfo(filename=output_path.name, sha256=file_sha256(output_path)),
+        inspection_video=(
+            VideoHashInfo(filename=inspection_path.name, sha256=file_sha256(inspection_path))
+            if inspection_path is not None
+            else None
+        ),
         watermark_assets=assets,
         config=config,
         events=events,

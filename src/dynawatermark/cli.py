@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import typer
 from rich.console import Console
+from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 
 from dynawatermark.config import ConfigError, WatermarkAssetConfig, load_config
-from dynawatermark.event_generator import generate_events
-from dynawatermark.ffmpeg_renderer import render_video
+from dynawatermark.event_generator import WatermarkEvent, generate_events
+from dynawatermark.ffmpeg_renderer import render_inspection_video, render_video
 from dynawatermark.metadata import build_metadata, make_job_id, write_metadata
 from dynawatermark.video_probe import probe_video
 from dynawatermark.watermark_asset import inspect_watermark_asset, prepare_event_assets
@@ -27,6 +29,7 @@ def render(
     config: Path = typer.Option(..., "--config", exists=True, readable=True, help="JSON 設定檔路徑。"),
     output_dir: Path = typer.Option(..., "--output-dir", help="輸出資料夾。"),
     watermark: Path | None = typer.Option(None, "--watermark", exists=True, readable=True, help="簡易模式 PNG 浮水印路徑。"),
+    inspection: bool = typer.Option(True, "--inspection/--no-inspection", help="是否輸出紅色區塊人工核對版影片。"),
 ) -> None:
     try:
         settings = load_config(config)
@@ -49,16 +52,18 @@ def render(
     job_dir = output_dir / job_id
     temp_dir = job_dir / "temp"
     output_video = job_dir / "output_watermarked.mp4"
+    inspection_video = job_dir / "inspection_red_boxes.mp4"
     metadata_path = job_dir / "metadata.json"
 
     console.print(f"產生 {len(events)} 個浮水印事件")
     event_assets = prepare_event_assets(asset_paths, events, temp_dir)
     try:
-        render_video(
+        _render_outputs(
             input_video=input,
-            event_asset_paths=event_assets,
+            event_assets=event_assets,
             events=events,
             output_video=output_video,
+            inspection_video=inspection_video if inspection else None,
             duration_sec=video.duration_sec,
         )
     except RuntimeError as error:
@@ -68,6 +73,7 @@ def render(
         job_id=job_id,
         input_path=input,
         output_path=output_video,
+        inspection_path=inspection_video if inspection else None,
         video=video,
         assets=list(assets.values()),
         config=settings,
@@ -76,6 +82,8 @@ def render(
     write_metadata(metadata, metadata_path)
 
     console.print(f"輸出影片：{output_video}")
+    if inspection:
+        console.print(f"人工核對版：{inspection_video}")
     console.print(f"Metadata：{metadata_path}")
 
 
@@ -98,6 +106,66 @@ def _resolve_asset_paths(
             raise typer.BadParameter(f"找不到浮水印圖片：{path}")
         paths[asset.asset_id] = path
     return paths
+
+
+def _render_outputs(
+    *,
+    input_video: Path,
+    event_assets: list[Path],
+    events: list[WatermarkEvent],
+    output_video: Path,
+    inspection_video: Path | None,
+    duration_sec: float,
+) -> None:
+    columns = [
+        TextColumn("[bold blue]{task.description}[/bold blue]"),
+        BarColumn(),
+        TextColumn("{task.percentage:>3.0f}%"),
+        TimeElapsedColumn(),
+        TimeRemainingColumn(),
+    ]
+    with Progress(*columns) as progress:
+        watermark_task = progress.add_task("Watermark", total=duration_sec)
+        futures = {}
+        with ThreadPoolExecutor(max_workers=2 if inspection_video else 1) as executor:
+            futures[
+                executor.submit(
+                    render_video,
+                    input_video=input_video,
+                    event_asset_paths=event_assets,
+                    events=events,
+                    output_video=output_video,
+                    duration_sec=duration_sec,
+                    progress_label="Watermark",
+                    progress=progress,
+                    task_id=watermark_task,
+                )
+            ] = "Watermark"
+            if inspection_video is not None:
+                inspection_task = progress.add_task("Inspection", total=duration_sec)
+                futures[
+                    executor.submit(
+                        render_inspection_video,
+                        input_video=input_video,
+                        events=events,
+                        output_video=inspection_video,
+                        duration_sec=duration_sec,
+                        progress_label="Inspection",
+                        progress=progress,
+                        task_id=inspection_task,
+                    )
+                ] = "Inspection"
+
+            errors: list[str] = []
+            for future in as_completed(futures):
+                label = futures[future]
+                try:
+                    future.result()
+                except RuntimeError as error:
+                    errors.append(f"{label}: {error}")
+
+        if errors:
+            raise RuntimeError("\n".join(errors))
 
 
 if __name__ == "__main__":
