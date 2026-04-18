@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DynaWatermark - 動態影片浮水印</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .upload-zone {
+            border: 3px dashed #cbd5e1;
+            border-radius: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+        
+        .slider-container {
+            position: relative;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e2e8f0;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+            transition: transform 0.2s;
+            pointer-events: auto;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        /* 雙範圍滑桿：兩個拉桿共用同一軲道 */
+        .dual-range {
+            position: relative;
+            height: 32px;
+            width: 100%;
+            margin: 8px 0;
+        }
+
+        .dual-range .track {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            transform: translateY(-50%);
+        }
+
+        .dual-range .track-fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+
+        .dual-range input[type="range"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            background: transparent;
+            pointer-events: none;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .dual-range input[type="range"]::-webkit-slider-thumb {
+            pointer-events: auto;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+        
+        .progress-ring-circle {
+            transition: stroke-dashoffset 0.35s;
+        }
+        
+        .step-indicator {
+            transition: all 0.3s ease;
+        }
+        
+        .step-indicator.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .file-preview {
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .result-card {
+            animation: slideUp 0.5s ease;
+        }
+        
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-white mb-2">
+                <i class="fas fa-fingerprint mr-3"></i>DynaWatermark
+            </h1>
+            <p class="text-white/80 text-lg">為你的影片加入動態可追溯浮水印</p>
+        </div>
+
+        <!-- Step Indicator -->
+        <div class="flex justify-center mb-8">
+            <div class="glass-panel px-6 py-3 flex gap-4">
+                <div class="step-indicator active px-4 py-2 rounded-full text-sm font-medium" data-step="1">
+                    <i class="fas fa-upload mr-2"></i>上傳
+                </div>
+                <div class="step-indicator px-4 py-2 rounded-full text-sm font-medium text-gray-500" data-step="2">
+                    <i class="fas fa-sliders-h mr-2"></i>設定
+                </div>
+                <div class="step-indicator px-4 py-2 rounded-full text-sm font-medium text-gray-500" data-step="3">
+                    <i class="fas fa-cog mr-2"></i>處理
+                </div>
+                <div class="step-indicator px-4 py-2 rounded-full text-sm font-medium text-gray-500" data-step="4">
+                    <i class="fas fa-download mr-2"></i>下載
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="glass-panel p-6 md:p-8">
+            <!-- Step 1: Upload -->
+            <div id="step1" class="step-content">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Video Upload -->
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-3">
+                            <i class="fas fa-video mr-2 text-indigo-500"></i>影片檔案
+                        </label>
+                        <div class="upload-zone p-8 text-center cursor-pointer" id="videoDropZone">
+                            <input type="file" id="videoInput" accept="video/*" class="hidden">
+                            <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-3"></i>
+                            <p class="text-gray-600 mb-2">拖曳影片至此或點擊上傳</p>
+                            <p class="text-gray-400 text-sm">支援 MP4、MOV、AVI 等格式</p>
+                        </div>
+                        <div id="videoPreview" class="hidden mt-3 file-preview">
+                            <div class="flex items-center bg-indigo-50 p-3 rounded-lg">
+                                <i class="fas fa-file-video text-2xl text-indigo-500 mr-3"></i>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-gray-800 truncate" id="videoName"></p>
+                                    <p class="text-sm text-gray-500" id="videoSize"></p>
+                                </div>
+                                <button class="text-red-500 hover:text-red-700" onclick="clearVideo()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Watermark Upload -->
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-3">
+                            <i class="fas fa-image mr-2 text-indigo-500"></i>浮水印圖片
+                        </label>
+                        <div class="upload-zone p-8 text-center cursor-pointer" id="watermarkDropZone">
+                            <input type="file" id="watermarkInput" accept="image/png,image/jpeg" class="hidden">
+                            <i class="fas fa-image text-4xl text-gray-400 mb-3"></i>
+                            <p class="text-gray-600 mb-2">拖曳圖片至此或點擊上傳</p>
+                            <p class="text-gray-400 text-sm">建議使用透明背景的 PNG</p>
+                        </div>
+                        <div id="watermarkPreview" class="hidden mt-3 file-preview">
+                            <div class="flex items-center bg-indigo-50 p-3 rounded-lg">
+                                <img id="watermarkThumb" class="w-12 h-12 object-cover rounded mr-3" src="" alt="">
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-medium text-gray-800 truncate" id="watermarkName"></p>
+                                    <p class="text-sm text-gray-500" id="watermarkSize"></p>
+                                </div>
+                                <button class="text-red-500 hover:text-red-700" onclick="clearWatermark()">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button id="toStep2" class="btn-primary text-white px-8 py-3 rounded-full font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        下一步：設定參數 <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 2: Settings -->
+            <div id="step2" class="step-content hidden">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Left: Sliders -->
+                    <div class="space-y-6">
+                        <div>
+                            <label class="flex justify-between text-gray-700 font-medium mb-2">
+                                <span>浮水印數量</span>
+                                <span class="text-indigo-600 font-bold" id="maxEventsValue">25</span>
+                            </label>
+                            <input type="range" id="maxEvents" min="5" max="100" value="25" class="w-full">
+                            <p class="text-gray-400 text-sm mt-1">影片中會出現的浮水印次數</p>
+                        </div>
+
+                        <div>
+                            <label class="flex justify-between text-gray-700 font-medium mb-2">
+                                <span>透明度範圍</span>
+                                <span class="text-indigo-600 font-bold" id="opacityValue">20% - 40%</span>
+                            </label>
+                            <div class="dual-range" id="opacityRange">
+                                <div class="track"><div class="track-fill" id="opacityFill"></div></div>
+                                <input type="range" id="opacityMin" min="0" max="100" value="20">
+                                <input type="range" id="opacityMax" min="0" max="100" value="40">
+                            </div>
+                            <p class="text-gray-400 text-sm mt-1">數值越低浮水印越透明</p>
+                        </div>
+
+                        <div>
+                            <label class="flex justify-between text-gray-700 font-medium mb-2">
+                                <span>顯示時間範圍</span>
+                                <span class="text-indigo-600 font-bold" id="durationValue">0.8s - 2.0s</span>
+                            </label>
+                            <div class="dual-range" id="durationRange">
+                                <div class="track"><div class="track-fill" id="durationFill"></div></div>
+                                <input type="range" id="durationMin" min="0.3" max="5" step="0.1" value="0.8">
+                                <input type="range" id="durationMax" min="0.3" max="5" step="0.1" value="2.0">
+                            </div>
+                            <p class="text-gray-400 text-sm mt-1">每次浮水印顯示的時間長度</p>
+                        </div>
+
+                        <div>
+                            <label class="flex justify-between text-gray-700 font-medium mb-2">
+                                <span>尺寸比例範圍</span>
+                                <span class="text-indigo-600 font-bold" id="sizeValue">8% - 15%</span>
+                            </label>
+                            <div class="dual-range" id="sizeRange">
+                                <div class="track"><div class="track-fill" id="sizeFill"></div></div>
+                                <input type="range" id="sizeMin" min="3" max="50" value="8">
+                                <input type="range" id="sizeMax" min="3" max="50" value="15">
+                            </div>
+                            <p class="text-gray-400 text-sm mt-1">相對於影片尺寸的浮水印大小</p>
+                        </div>
+                    </div>
+
+                    <!-- Right: Options & Preview -->
+                    <div class="space-y-6">
+                        <div class="bg-gray-50 p-4 rounded-xl">
+                            <h4 class="font-semibold text-gray-700 mb-4">
+                                <i class="fas fa-eye mr-2 text-indigo-500"></i>進階選項
+                            </h4>
+                            
+                            <label class="flex items-center gap-3 mb-3 cursor-pointer">
+                                <input type="checkbox" id="inspectionMode" checked class="w-5 h-5 text-indigo-600 rounded">
+                                <span class="text-gray-700">產生人工核對版本</span>
+                                <span class="text-gray-400 text-sm">(紅框標示浮水印位置)</span>
+                            </label>
+                        </div>
+
+                        <!-- Preview Card -->
+                        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-100">
+                            <h4 class="font-semibold text-gray-700 mb-3">預覽設定效果</h4>
+                            <div class="space-y-2 text-sm text-gray-600">
+                                <div class="flex justify-between">
+                                    <span>模式：</span>
+                                    <span class="font-medium">隨機動態</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>預估浮水印數：</span>
+                                    <span class="font-medium text-indigo-600" id="previewCount">25 個</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>平均透明度：</span>
+                                    <span class="font-medium" id="previewOpacity">30%</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>平均顯示時間：</span>
+                                    <span class="font-medium" id="previewDuration">1.4 秒</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tips -->
+                        <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                            <h4 class="font-semibold text-yellow-700 mb-2">
+                                <i class="fas fa-lightbulb mr-2"></i>小提示
+                            </h4>
+                            <ul class="text-sm text-yellow-600 space-y-1">
+                                <li>• 更多浮水印 = 更好的追溯能力</li>
+                                <li>• 較低的透明度讓浮水印更隱蔽</li>
+                                <li>• 人工核對版可協助確認浮水印位置</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 flex gap-4 justify-center">
+                    <button onclick="goToStep(1)" class="px-6 py-3 rounded-full font-semibold text-gray-600 hover:bg-gray-100 transition">
+                        <i class="fas fa-arrow-left mr-2"></i>返回
+                    </button>
+                    <button id="startProcess" class="btn-primary text-white px-8 py-3 rounded-full font-semibold text-lg">
+                        <i class="fas fa-play mr-2"></i>開始處理
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 3: Processing -->
+            <div id="step3" class="step-content hidden">
+                <div class="text-center py-12">
+                    <div class="relative w-32 h-32 mx-auto mb-6">
+                        <svg class="progress-ring w-32 h-32" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="54" fill="none" stroke="#e2e8f0" stroke-width="8"/>
+                            <circle id="progressCircle" cx="60" cy="60" r="54" fill="none" stroke="url(#gradient)" stroke-width="8" stroke-linecap="round"
+                                stroke-dasharray="339.292" stroke-dashoffset="339.292" class="progress-ring-circle"/>
+                            <defs>
+                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#667eea"/>
+                                    <stop offset="100%" stop-color="#764ba2"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span id="progressPercent" class="text-2xl font-bold text-gray-700">0%</span>
+                        </div>
+                    </div>
+                    
+                    <h3 id="processStatus" class="text-xl font-semibold text-gray-700 mb-2">準備處理...</h3>
+                    <p id="processMessage" class="text-gray-500">正在初始化...</p>
+                    
+                    <div class="mt-6 flex gap-3 justify-center">
+                        <button id="cancelJob" class="px-4 py-2 rounded-full text-red-500 hover:bg-red-50 transition">
+                            <i class="fas fa-times mr-2"></i>取消
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 4: Download -->
+            <div id="step4" class="step-content hidden">
+                <div class="text-center mb-6">
+                    <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-check text-3xl text-green-500"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold text-gray-700">處理完成！</h3>
+                    <p id="resultMessage" class="text-gray-500 mt-2">產生 25 個浮水印事件</p>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                    <a id="downloadVideo" href="#" class="result-card bg-indigo-50 hover:bg-indigo-100 p-6 rounded-xl text-center transition">
+                        <i class="fas fa-file-video text-4xl text-indigo-500 mb-3"></i>
+                        <h4 class="font-semibold text-gray-700">下載影片</h4>
+                        <p class="text-sm text-gray-500">含動態浮水印的最終版本</p>
+                    </a>
+
+                    <a id="downloadInspection" href="#" class="result-card bg-purple-50 hover:bg-purple-100 p-6 rounded-xl text-center transition">
+                        <i class="fas fa-eye text-4xl text-purple-500 mb-3"></i>
+                        <h4 class="font-semibold text-gray-700">下載核對版</h4>
+                        <p class="text-sm text-gray-500">紅框標示所有浮水印位置</p>
+                    </a>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button onclick="location.reload()" class="btn-primary text-white px-8 py-3 rounded-full font-semibold">
+                        <i class="fas fa-plus mr-2"></i>處理新影片
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-white/60 text-sm">
+            <p>DynaWatermark - 動態可追溯影片浮水印工具</p>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

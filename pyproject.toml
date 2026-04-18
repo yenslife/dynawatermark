@@ -5,10 +5,14 @@ description = "Dynamic traceable video watermarking CLI"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.136.0",
     "pillow>=12.2.0",
     "pydantic>=2.13.2",
+    "python-multipart>=0.0.26",
     "rich>=15.0.0",
     "typer>=0.24.1",
+    "uvicorn[standard]>=0.44.0",
+    "websockets>=16.0",
 ]
 
 [dependency-groups]
