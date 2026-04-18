@@ -1,0 +1,27 @@
+{
+  "mode": "random",
+  "seed": 12345,
+  "max_events": 30,
+  "opacity_range": [0.15, 0.35],
+  "duration_range_sec": [0.8, 2.0],
+  "size_range_ratio": [0.08, 0.15],
+  "position_strategy": "random",
+  "margin_ratio": 0.03,
+  "allow_rotation": false,
+  "assets": [
+    {
+      "asset_id": "logo_main",
+      "path": "assets/logo-main.png",
+      "frequency_weight": 4,
+      "opacity_range": [0.18, 0.28],
+      "size_range_ratio": [0.08, 0.12]
+    },
+    {
+      "asset_id": "logo_small",
+      "path": "assets/logo-small.png",
+      "frequency_weight": 1,
+      "opacity": 0.42,
+      "size_ratio": 0.06
+    }
+  ]
+}

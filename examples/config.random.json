@@ -1,0 +1,11 @@
+{
+  "mode": "random",
+  "seed": 12345,
+  "max_events": 25,
+  "opacity_range": [0.2, 0.4],
+  "duration_range_sec": [0.8, 2.0],
+  "size_range_ratio": [0.08, 0.15],
+  "position_strategy": "random",
+  "margin_ratio": 0.03,
+  "allow_rotation": false
+}

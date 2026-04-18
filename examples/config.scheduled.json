@@ -1,0 +1,42 @@
+{
+  "mode": "scheduled",
+  "opacity_range": [0.2, 0.4],
+  "duration_range_sec": [0.8, 2.0],
+  "size_range_ratio": [0.08, 0.15],
+  "position_strategy": "random",
+  "margin_ratio": 0.03,
+  "allow_rotation": false,
+  "assets": [
+    {
+      "asset_id": "logo_main",
+      "path": "assets/logo-main.png",
+      "opacity": 0.3,
+      "size_ratio": 0.1
+    },
+    {
+      "asset_id": "logo_corner",
+      "path": "assets/logo-corner.png",
+      "opacity": 0.5,
+      "size_ratio": 0.06
+    }
+  ],
+  "scheduled_events": [
+    {
+      "asset_id": "logo_main",
+      "start_time_sec": 3.0,
+      "duration_sec": 1.5,
+      "x": 120,
+      "y": 80,
+      "opacity": 0.35
+    },
+    {
+      "asset_id": "logo_corner",
+      "start_time_sec": 12.0,
+      "duration_sec": 2.0,
+      "x": 1450,
+      "y": 820,
+      "width": 160,
+      "height": 64
+    }
+  ]
+}
