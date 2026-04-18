@@ -53,12 +53,17 @@ def render(
 
     console.print(f"產生 {len(events)} 個浮水印事件")
     event_assets = prepare_event_assets(asset_paths, events, temp_dir)
-    render_video(
-        input_video=input,
-        event_asset_paths=event_assets,
-        events=events,
-        output_video=output_video,
-    )
+    try:
+        render_video(
+            input_video=input,
+            event_asset_paths=event_assets,
+            events=events,
+            output_video=output_video,
+            duration_sec=video.duration_sec,
+        )
+    except RuntimeError as error:
+        console.print(f"[red]FFmpeg 處理失敗：{error}[/red]")
+        raise typer.Exit(code=1) from error
     metadata = build_metadata(
         job_id=job_id,
         input_path=input,
