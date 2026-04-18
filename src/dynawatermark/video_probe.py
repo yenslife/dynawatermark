@@ -7,6 +7,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from dynawatermark.errors import FfmpegNotFoundError, VideoProbeError
+
 
 class VideoInfo(BaseModel):
     filename: str
@@ -36,16 +38,26 @@ def probe_video(path: Path) -> VideoInfo:
         "json",
         str(path),
     ]
-    result = subprocess.run(command, capture_output=True, text=True, check=True)
-    payload = json.loads(result.stdout)
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+    except FileNotFoundError as error:
+        raise FfmpegNotFoundError("找不到 ffprobe，請先安裝 FFmpeg 並確認 ffprobe 在 PATH 內。") from error
+    except subprocess.CalledProcessError as error:
+        message = error.stderr.strip() or error.stdout.strip() or str(error)
+        raise VideoProbeError(f"ffprobe 無法讀取影片：{path}。{message}") from error
+
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as error:
+        raise VideoProbeError(f"ffprobe 輸出不是合法 JSON：{path}") from error
     streams = payload.get("streams") or []
     if not streams:
-        raise ValueError(f"No video stream found: {path}")
+        raise VideoProbeError(f"找不到影片串流：{path}")
 
     stream = streams[0]
     duration = stream.get("duration")
     if duration is None:
-        raise ValueError(f"Video duration is unavailable: {path}")
+        raise VideoProbeError(f"無法取得影片長度：{path}")
 
     return VideoInfo(
         filename=path.name,

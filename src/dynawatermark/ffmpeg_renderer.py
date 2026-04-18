@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import subprocess
+from threading import Event
 from pathlib import Path
 
 from rich.progress import TaskID
 from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 
+from dynawatermark.errors import FfmpegNotFoundError, FfmpegRenderError, RenderCanceledError
 from dynawatermark.event_generator import WatermarkEvent
 
 
@@ -19,6 +21,7 @@ def render_video(
     progress_label: str = "FFmpeg",
     progress: Progress | None = None,
     task_id: TaskID | None = None,
+    cancel_event: Event | None = None,
 ) -> None:
     output_video.parent.mkdir(parents=True, exist_ok=True)
     if len(event_asset_paths) != len(events):
@@ -64,6 +67,7 @@ def render_video(
         label=progress_label,
         progress=progress,
         task_id=task_id,
+        cancel_event=cancel_event,
     )
 
 
@@ -76,6 +80,7 @@ def render_inspection_video(
     progress_label: str = "Inspection",
     progress: Progress | None = None,
     task_id: TaskID | None = None,
+    cancel_event: Event | None = None,
 ) -> None:
     output_video.parent.mkdir(parents=True, exist_ok=True)
     command = [
@@ -117,6 +122,7 @@ def render_inspection_video(
         label=progress_label,
         progress=progress,
         task_id=task_id,
+        cancel_event=cancel_event,
     )
 
 
@@ -127,18 +133,28 @@ def _run_with_progress(
     label: str,
     progress: Progress | None,
     task_id: TaskID | None,
+    cancel_event: Event | None,
 ) -> None:
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+    except FileNotFoundError as error:
+        raise FfmpegNotFoundError("找不到 ffmpeg，請先安裝 FFmpeg 並確認 ffmpeg 在 PATH 內。") from error
     assert process.stdout is not None
 
     total = duration_sec if duration_sec and duration_sec > 0 else None
     if progress is not None and task_id is not None:
-        _consume_progress(process, duration_sec=total, progress=progress, task_id=task_id)
+        _consume_progress(
+            process,
+            duration_sec=total,
+            progress=progress,
+            task_id=task_id,
+            cancel_event=cancel_event,
+        )
         return
 
     columns = [
@@ -152,7 +168,13 @@ def _run_with_progress(
 
     with Progress(*columns) as progress:
         task_id = progress.add_task("render", total=total)
-        _consume_progress(process, duration_sec=total, progress=progress, task_id=task_id)
+        _consume_progress(
+            process,
+            duration_sec=total,
+            progress=progress,
+            task_id=task_id,
+            cancel_event=cancel_event,
+        )
 
 
 def _consume_progress(
@@ -161,9 +183,13 @@ def _consume_progress(
     duration_sec: float | None,
     progress: Progress,
     task_id: TaskID,
+    cancel_event: Event | None,
 ) -> None:
     assert process.stdout is not None
     for line in process.stdout:
+        if cancel_event is not None and cancel_event.is_set():
+            _terminate_process(process)
+            raise RenderCanceledError("使用者已取消處理。")
         key, _, value = line.strip().partition("=")
         if key in {"out_time_ms", "out_time_us"}:
             seconds = _parse_progress_time(value)
@@ -175,9 +201,22 @@ def _consume_progress(
 
     stderr = process.stderr.read() if process.stderr else ""
     return_code = process.wait()
+    if cancel_event is not None and cancel_event.is_set():
+        raise RenderCanceledError("使用者已取消處理。")
     if return_code != 0:
         message = stderr.strip() or f"FFmpeg failed with exit code {return_code}"
-        raise RuntimeError(message)
+        raise FfmpegRenderError(message)
+
+
+def _terminate_process(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
 
 
 def _parse_progress_time(value: str) -> float | None:
